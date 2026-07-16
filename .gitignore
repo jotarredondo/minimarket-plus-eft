@@ -1,0 +1,35 @@
+﻿# Maven
+**/target/
+
+# IntelliJ IDEA
+.idea/
+**/.idea/
+*.iml
+*.iws
+*.ipr
+
+# Visual Studio Code
+.vscode/
+**/.vscode/
+
+# Eclipse y Spring Tool Suite
+.classpath
+.project
+.settings/
+**/.settings/
+
+# Logs
+*.log
+
+# Archivos locales o sensibles
+.env
+application-local.properties
+application-local.yml
+
+# Bases de datos H2 locales
+*.mv.db
+*.trace.db
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
