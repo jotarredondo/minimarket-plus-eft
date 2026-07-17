@@ -75,6 +75,13 @@ public class SecurityConfig {
                                 "/api/auth/login"
                         ).permitAll()
 
+                        // Documentación OpenAPI y Swagger UI.
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
                         // Consola H2 habilitada durante desarrollo.
                         .requestMatchers("/h2-console/**").permitAll()
 
