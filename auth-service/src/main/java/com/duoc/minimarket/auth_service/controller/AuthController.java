@@ -1,11 +1,15 @@
 package com.duoc.minimarket.auth_service.controller;
 
+import com.duoc.minimarket.auth_service.dto.AuthResponse;
+import com.duoc.minimarket.auth_service.dto.LoginRequest;
 import com.duoc.minimarket.auth_service.dto.RegisterRequest;
 import com.duoc.minimarket.auth_service.dto.UsuarioResponse;
 import com.duoc.minimarket.auth_service.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,5 +34,26 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request
+    ) {
+        AuthResponse response = authService.login(request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UsuarioResponse> obtenerPerfil(
+            Authentication authentication
+    ) {
+        UsuarioResponse response = authService.obtenerPerfil(
+                authentication.getName()
+        );
+
+        return ResponseEntity.ok(response);
     }
 }
