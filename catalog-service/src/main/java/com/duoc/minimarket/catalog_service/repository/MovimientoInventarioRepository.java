@@ -1,0 +1,13 @@
+package com.duoc.minimarket.catalog_service.repository;
+
+import com.duoc.minimarket.catalog_service.entity.MovimientoInventario;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface MovimientoInventarioRepository
+        extends JpaRepository<MovimientoInventario, Long> {
+
+    List<MovimientoInventario>
+    findByInventarioIdOrderByFechaMovimientoDesc(Long inventarioId);
+}
