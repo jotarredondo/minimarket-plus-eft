@@ -276,11 +276,11 @@ target/site/jacoco/index.html
 
 Cobertura registrada:
 
-| Microservicio | Cobertura |
-|---|---:|
-| Auth Service | 81 % |
-| Catalog Service | 83 % |
-| Sales Service | 76 % en la última ejecución después de incorporar HATEOAS |
+| Microservicio |                                                   Cobertura |
+|---|------------------------------------------------------------:|
+| Auth Service |                                                        81 % |
+| Catalog Service |                                                        83 % |
+| Sales Service |   80 % en la última ejecución después de incorporar HATEOAS |
 
 Antes de la entrega final se debe ejecutar nuevamente la validación de `sales-service` y actualizar esta tabla con el porcentaje definitivo. El objetivo académico es mantener una cobertura igual o superior al 80 %.
 
