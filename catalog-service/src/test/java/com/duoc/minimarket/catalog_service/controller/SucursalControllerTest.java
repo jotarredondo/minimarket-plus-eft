@@ -1,5 +1,6 @@
 package com.duoc.minimarket.catalog_service.controller;
 
+import com.duoc.minimarket.catalog_service.assembler.SucursalModelAssembler;
 import com.duoc.minimarket.catalog_service.dto.SucursalRequest;
 import com.duoc.minimarket.catalog_service.dto.SucursalResponse;
 import com.duoc.minimarket.catalog_service.service.SucursalService;
@@ -8,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -25,15 +28,22 @@ class SucursalControllerTest {
     @Mock
     private SucursalService sucursalService;
 
+    @Mock
+    private SucursalModelAssembler sucursalModelAssembler;
+
     private SucursalController sucursalController;
 
     private SucursalRequest request;
-    private SucursalResponse response;
+    private SucursalResponse sucursalResponse;
+    private EntityModel<SucursalResponse> sucursalModel;
 
     @BeforeEach
     void configurarDatos() {
         sucursalController =
-                new SucursalController(sucursalService);
+                new SucursalController(
+                        sucursalService,
+                        sucursalModelAssembler
+                );
 
         request = new SucursalRequest(
                 "SUC-001",
@@ -41,21 +51,38 @@ class SucursalControllerTest {
                 "Avenida Principal 100"
         );
 
-        response = new SucursalResponse(
+        sucursalResponse = new SucursalResponse(
                 1L,
                 "SUC-001",
                 "Sucursal Centro",
                 "Avenida Principal 100",
                 true
         );
+
+        sucursalModel =
+                EntityModel.of(sucursalResponse);
     }
 
     @Test
     void listar_debeRetornarSucursalesActivas() {
-        when(sucursalService.listarActivas())
-                .thenReturn(List.of(response));
+        List<SucursalResponse> sucursales =
+                List.of(sucursalResponse);
 
-        ResponseEntity<List<SucursalResponse>> resultado =
+        CollectionModel<EntityModel<SucursalResponse>> modelo =
+                CollectionModel.of(
+                        List.of(sucursalModel)
+                );
+
+        when(sucursalService.listarActivas())
+                .thenReturn(sucursales);
+
+        when(sucursalModelAssembler
+                .toCollectionModel(sucursales))
+                .thenReturn(modelo);
+
+        ResponseEntity<
+                CollectionModel<EntityModel<SucursalResponse>>
+                > resultado =
                 sucursalController.listar();
 
         assertAll(
@@ -64,24 +91,32 @@ class SucursalControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1,
-                        resultado.getBody().size()
+                        modelo,
+                        resultado.getBody()
                 ),
                 () -> assertEquals(
-                        "SUC-001",
-                        resultado.getBody().get(0).codigo()
+                        1,
+                        resultado.getBody()
+                                .getContent()
+                                .size()
                 )
         );
 
         verify(sucursalService).listarActivas();
+
+        verify(sucursalModelAssembler)
+                .toCollectionModel(sucursales);
     }
 
     @Test
-    void obtenerPorId_debeRetornarSucursal() {
+    void obtenerPorId_debeRetornarSucursalConEnlaces() {
         when(sucursalService.obtenerPorId(1L))
-                .thenReturn(response);
+                .thenReturn(sucursalResponse);
 
-        ResponseEntity<SucursalResponse> resultado =
+        when(sucursalModelAssembler.toModel(sucursalResponse))
+                .thenReturn(sucursalModel);
+
+        ResponseEntity<EntityModel<SucursalResponse>> resultado =
                 sucursalController.obtenerPorId(1L);
 
         assertAll(
@@ -90,24 +125,31 @@ class SucursalControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1L,
-                        resultado.getBody().id()
+                        sucursalModel,
+                        resultado.getBody()
                 ),
                 () -> assertEquals(
-                        "Sucursal Centro",
-                        resultado.getBody().nombre()
+                        "SUC-001",
+                        resultado.getBody()
+                                .getContent()
+                                .codigo()
                 )
         );
 
         verify(sucursalService).obtenerPorId(1L);
+        verify(sucursalModelAssembler)
+                .toModel(sucursalResponse);
     }
 
     @Test
     void crear_debeRetornar201Created() {
         when(sucursalService.crear(request))
-                .thenReturn(response);
+                .thenReturn(sucursalResponse);
 
-        ResponseEntity<SucursalResponse> resultado =
+        when(sucursalModelAssembler.toModel(sucursalResponse))
+                .thenReturn(sucursalModel);
+
+        ResponseEntity<EntityModel<SucursalResponse>> resultado =
                 sucursalController.crear(request);
 
         assertAll(
@@ -116,12 +158,14 @@ class SucursalControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertEquals(
-                        response,
+                        sucursalModel,
                         resultado.getBody()
                 )
         );
 
         verify(sucursalService).crear(request);
+        verify(sucursalModelAssembler)
+                .toModel(sucursalResponse);
     }
 
     @Test
@@ -135,10 +179,16 @@ class SucursalControllerTest {
                         true
                 );
 
+        EntityModel<SucursalResponse> modeloActualizado =
+                EntityModel.of(actualizada);
+
         when(sucursalService.actualizar(1L, request))
                 .thenReturn(actualizada);
 
-        ResponseEntity<SucursalResponse> resultado =
+        when(sucursalModelAssembler.toModel(actualizada))
+                .thenReturn(modeloActualizado);
+
+        ResponseEntity<EntityModel<SucursalResponse>> resultado =
                 sucursalController.actualizar(1L, request);
 
         assertAll(
@@ -148,15 +198,20 @@ class SucursalControllerTest {
                 ),
                 () -> assertEquals(
                         "Sucursal Centro Actualizada",
-                        resultado.getBody().nombre()
+                        resultado.getBody()
+                                .getContent()
+                                .nombre()
                 ),
                 () -> assertEquals(
                         "Nueva Avenida 200",
-                        resultado.getBody().direccion()
+                        resultado.getBody()
+                                .getContent()
+                                .direccion()
                 )
         );
 
         verify(sucursalService).actualizar(1L, request);
+        verify(sucursalModelAssembler).toModel(actualizada);
     }
 
     @Test
@@ -170,10 +225,16 @@ class SucursalControllerTest {
                         false
                 );
 
+        EntityModel<SucursalResponse> modeloDesactivado =
+                EntityModel.of(desactivada);
+
         when(sucursalService.cambiarEstado(1L, false))
                 .thenReturn(desactivada);
 
-        ResponseEntity<SucursalResponse> resultado =
+        when(sucursalModelAssembler.toModel(desactivada))
+                .thenReturn(modeloDesactivado);
+
+        ResponseEntity<EntityModel<SucursalResponse>> resultado =
                 sucursalController.cambiarEstado(1L, false);
 
         assertAll(
@@ -182,10 +243,13 @@ class SucursalControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertFalse(
-                        resultado.getBody().activo()
+                        resultado.getBody()
+                                .getContent()
+                                .activo()
                 )
         );
 
         verify(sucursalService).cambiarEstado(1L, false);
+        verify(sucursalModelAssembler).toModel(desactivada);
     }
 }

@@ -1,5 +1,6 @@
 package com.duoc.minimarket.catalog_service.controller;
 
+import com.duoc.minimarket.catalog_service.assembler.ProductoModelAssembler;
 import com.duoc.minimarket.catalog_service.dto.ProductoRequest;
 import com.duoc.minimarket.catalog_service.dto.ProductoResponse;
 import com.duoc.minimarket.catalog_service.service.ProductoService;
@@ -8,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -26,15 +29,22 @@ class ProductoControllerTest {
     @Mock
     private ProductoService productoService;
 
+    @Mock
+    private ProductoModelAssembler productoModelAssembler;
+
     private ProductoController productoController;
 
     private ProductoRequest productoRequest;
     private ProductoResponse productoResponse;
+    private EntityModel<ProductoResponse> productoModel;
 
     @BeforeEach
     void configurarDatos() {
         productoController =
-                new ProductoController(productoService);
+                new ProductoController(
+                        productoService,
+                        productoModelAssembler
+                );
 
         productoRequest = new ProductoRequest(
                 "BEB-001",
@@ -54,14 +64,31 @@ class ProductoControllerTest {
                 1L,
                 "Bebidas"
         );
+
+        productoModel =
+                EntityModel.of(productoResponse);
     }
 
     @Test
     void listar_sinCategoriaDebeRetornarTodosLosProductos() {
-        when(productoService.listarActivos())
-                .thenReturn(List.of(productoResponse));
+        List<ProductoResponse> productos =
+                List.of(productoResponse);
 
-        ResponseEntity<List<ProductoResponse>> respuesta =
+        CollectionModel<EntityModel<ProductoResponse>> modelo =
+                CollectionModel.of(
+                        List.of(productoModel)
+                );
+
+        when(productoService.listarActivos())
+                .thenReturn(productos);
+
+        when(productoModelAssembler
+                .toCollectionModel(productos))
+                .thenReturn(modelo);
+
+        ResponseEntity<
+                CollectionModel<EntityModel<ProductoResponse>>
+                > respuesta =
                 productoController.listar(null);
 
         assertAll(
@@ -70,24 +97,43 @@ class ProductoControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1,
-                        respuesta.getBody().size()
+                        modelo,
+                        respuesta.getBody()
                 ),
                 () -> assertEquals(
-                        "BEB-001",
-                        respuesta.getBody().get(0).sku()
+                        1,
+                        respuesta.getBody()
+                                .getContent()
+                                .size()
                 )
         );
 
         verify(productoService).listarActivos();
+
+        verify(productoModelAssembler)
+                .toCollectionModel(productos);
     }
 
     @Test
     void listar_conCategoriaDebeFiltrarPorCategoria() {
-        when(productoService.listarPorCategoria(1L))
-                .thenReturn(List.of(productoResponse));
+        List<ProductoResponse> productos =
+                List.of(productoResponse);
 
-        ResponseEntity<List<ProductoResponse>> respuesta =
+        CollectionModel<EntityModel<ProductoResponse>> modelo =
+                CollectionModel.of(
+                        List.of(productoModel)
+                );
+
+        when(productoService.listarPorCategoria(1L))
+                .thenReturn(productos);
+
+        when(productoModelAssembler
+                .toCollectionModel(productos))
+                .thenReturn(modelo);
+
+        ResponseEntity<
+                CollectionModel<EntityModel<ProductoResponse>>
+                > respuesta =
                 productoController.listar(1L);
 
         assertAll(
@@ -96,26 +142,27 @@ class ProductoControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1,
-                        respuesta.getBody().size()
-                ),
-                () -> assertEquals(
-                        1L,
+                        modelo,
                         respuesta.getBody()
-                                .get(0)
-                                .categoriaId()
                 )
         );
 
-        verify(productoService).listarPorCategoria(1L);
+        verify(productoService)
+                .listarPorCategoria(1L);
+
+        verify(productoModelAssembler)
+                .toCollectionModel(productos);
     }
 
     @Test
-    void obtenerPorId_debeRetornarProducto() {
+    void obtenerPorId_debeRetornarProductoConEnlaces() {
         when(productoService.obtenerPorId(1L))
                 .thenReturn(productoResponse);
 
-        ResponseEntity<ProductoResponse> respuesta =
+        when(productoModelAssembler.toModel(productoResponse))
+                .thenReturn(productoModel);
+
+        ResponseEntity<EntityModel<ProductoResponse>> respuesta =
                 productoController.obtenerPorId(1L);
 
         assertAll(
@@ -124,16 +171,20 @@ class ProductoControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1L,
-                        respuesta.getBody().id()
+                        productoModel,
+                        respuesta.getBody()
                 ),
                 () -> assertEquals(
                         "BEB-001",
-                        respuesta.getBody().sku()
+                        respuesta.getBody()
+                                .getContent()
+                                .sku()
                 )
         );
 
         verify(productoService).obtenerPorId(1L);
+        verify(productoModelAssembler)
+                .toModel(productoResponse);
     }
 
     @Test
@@ -141,7 +192,10 @@ class ProductoControllerTest {
         when(productoService.crear(productoRequest))
                 .thenReturn(productoResponse);
 
-        ResponseEntity<ProductoResponse> respuesta =
+        when(productoModelAssembler.toModel(productoResponse))
+                .thenReturn(productoModel);
+
+        ResponseEntity<EntityModel<ProductoResponse>> respuesta =
                 productoController.crear(productoRequest);
 
         assertAll(
@@ -150,12 +204,14 @@ class ProductoControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertEquals(
-                        productoResponse,
+                        productoModel,
                         respuesta.getBody()
                 )
         );
 
         verify(productoService).crear(productoRequest);
+        verify(productoModelAssembler)
+                .toModel(productoResponse);
     }
 
     @Test
@@ -172,12 +228,18 @@ class ProductoControllerTest {
                         "Bebidas"
                 );
 
+        EntityModel<ProductoResponse> modeloActualizado =
+                EntityModel.of(actualizado);
+
         when(productoService.actualizar(
                 1L,
                 productoRequest
         )).thenReturn(actualizado);
 
-        ResponseEntity<ProductoResponse> respuesta =
+        when(productoModelAssembler.toModel(actualizado))
+                .thenReturn(modeloActualizado);
+
+        ResponseEntity<EntityModel<ProductoResponse>> respuesta =
                 productoController.actualizar(
                         1L,
                         productoRequest
@@ -190,11 +252,9 @@ class ProductoControllerTest {
                 ),
                 () -> assertEquals(
                         "Bebida Cola Actualizada",
-                        respuesta.getBody().nombre()
-                ),
-                () -> assertEquals(
-                        new BigDecimal("2190.00"),
-                        respuesta.getBody().precio()
+                        respuesta.getBody()
+                                .getContent()
+                                .nombre()
                 )
         );
 
@@ -202,6 +262,9 @@ class ProductoControllerTest {
                 1L,
                 productoRequest
         );
+
+        verify(productoModelAssembler)
+                .toModel(actualizado);
     }
 
     @Test
@@ -218,10 +281,16 @@ class ProductoControllerTest {
                         "Bebidas"
                 );
 
+        EntityModel<ProductoResponse> modeloDesactivado =
+                EntityModel.of(desactivado);
+
         when(productoService.cambiarEstado(1L, false))
                 .thenReturn(desactivado);
 
-        ResponseEntity<ProductoResponse> respuesta =
+        when(productoModelAssembler.toModel(desactivado))
+                .thenReturn(modeloDesactivado);
+
+        ResponseEntity<EntityModel<ProductoResponse>> respuesta =
                 productoController.cambiarEstado(
                         1L,
                         false
@@ -233,13 +302,16 @@ class ProductoControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertFalse(
-                        respuesta.getBody().activo()
+                        respuesta.getBody()
+                                .getContent()
+                                .activo()
                 )
         );
 
-        verify(productoService).cambiarEstado(
-                1L,
-                false
-        );
+        verify(productoService)
+                .cambiarEstado(1L, false);
+
+        verify(productoModelAssembler)
+                .toModel(desactivado);
     }
 }

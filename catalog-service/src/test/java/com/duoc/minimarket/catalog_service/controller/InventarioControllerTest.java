@@ -1,5 +1,7 @@
 package com.duoc.minimarket.catalog_service.controller;
 
+import com.duoc.minimarket.catalog_service.assembler.InventarioModelAssembler;
+import com.duoc.minimarket.catalog_service.assembler.MovimientoInventarioModelAssembler;
 import com.duoc.minimarket.catalog_service.dto.CrearInventarioRequest;
 import com.duoc.minimarket.catalog_service.dto.InventarioResponse;
 import com.duoc.minimarket.catalog_service.dto.MovimientoInventarioRequest;
@@ -11,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -33,17 +37,29 @@ class InventarioControllerTest {
     private InventarioService inventarioService;
 
     @Mock
+    private InventarioModelAssembler inventarioModelAssembler;
+
+    @Mock
+    private MovimientoInventarioModelAssembler
+            movimientoModelAssembler;
+
+    @Mock
     private Authentication authentication;
 
     private InventarioController inventarioController;
 
     private CrearInventarioRequest crearInventarioRequest;
     private InventarioResponse inventarioResponse;
+    private EntityModel<InventarioResponse> inventarioModel;
 
     @BeforeEach
     void configurarDatos() {
         inventarioController =
-                new InventarioController(inventarioService);
+                new InventarioController(
+                        inventarioService,
+                        inventarioModelAssembler,
+                        movimientoModelAssembler
+                );
 
         crearInventarioRequest =
                 new CrearInventarioRequest(
@@ -73,6 +89,9 @@ class InventarioControllerTest {
                                 0
                         )
                 );
+
+        inventarioModel =
+                EntityModel.of(inventarioResponse);
     }
 
     @Test
@@ -85,7 +104,11 @@ class InventarioControllerTest {
                 ADMIN_EMAIL
         )).thenReturn(inventarioResponse);
 
-        ResponseEntity<InventarioResponse> respuesta =
+        when(inventarioModelAssembler
+                .toModel(inventarioResponse))
+                .thenReturn(inventarioModel);
+
+        ResponseEntity<EntityModel<InventarioResponse>> respuesta =
                 inventarioController.crear(
                         crearInventarioRequest,
                         authentication
@@ -97,33 +120,36 @@ class InventarioControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertEquals(
-                        inventarioResponse,
+                        inventarioModel,
                         respuesta.getBody()
                 ),
                 () -> assertEquals(
                         20,
-                        respuesta.getBody().stockActual()
-                ),
-                () -> assertEquals(
-                        false,
-                        respuesta.getBody().requiereReposicion()
+                        respuesta.getBody()
+                                .getContent()
+                                .stockActual()
                 )
         );
-
-        verify(authentication).getName();
 
         verify(inventarioService).crear(
                 crearInventarioRequest,
                 ADMIN_EMAIL
         );
+
+        verify(inventarioModelAssembler)
+                .toModel(inventarioResponse);
     }
 
     @Test
-    void obtenerPorId_debeRetornarInventario() {
+    void obtenerPorId_debeRetornarInventarioConEnlaces() {
         when(inventarioService.obtenerPorId(1L))
                 .thenReturn(inventarioResponse);
 
-        ResponseEntity<InventarioResponse> respuesta =
+        when(inventarioModelAssembler
+                .toModel(inventarioResponse))
+                .thenReturn(inventarioModel);
+
+        ResponseEntity<EntityModel<InventarioResponse>> respuesta =
                 inventarioController.obtenerPorId(1L);
 
         assertAll(
@@ -132,28 +158,45 @@ class InventarioControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1L,
-                        respuesta.getBody().id()
+                        inventarioModel,
+                        respuesta.getBody()
                 ),
                 () -> assertEquals(
                         "BEB-001",
-                        respuesta.getBody().productoSku()
-                ),
-                () -> assertEquals(
-                        "SUC-001",
-                        respuesta.getBody().sucursalCodigo()
+                        respuesta.getBody()
+                                .getContent()
+                                .productoSku()
                 )
         );
 
         verify(inventarioService).obtenerPorId(1L);
+        verify(inventarioModelAssembler)
+                .toModel(inventarioResponse);
     }
 
     @Test
-    void listarPorProducto_debeRetornarInventariosDelProducto() {
-        when(inventarioService.listarPorProducto(1L))
-                .thenReturn(List.of(inventarioResponse));
+    void listarPorProducto_debeRetornarColeccion() {
+        List<InventarioResponse> inventarios =
+                List.of(inventarioResponse);
 
-        ResponseEntity<List<InventarioResponse>> respuesta =
+        CollectionModel<EntityModel<InventarioResponse>> modelo =
+                CollectionModel.of(
+                        List.of(inventarioModel)
+                );
+
+        when(inventarioService.listarPorProducto(1L))
+                .thenReturn(inventarios);
+
+        when(inventarioModelAssembler
+                .toCollectionModelPorProducto(
+                        inventarios,
+                        1L
+                ))
+                .thenReturn(modelo);
+
+        ResponseEntity<
+                CollectionModel<EntityModel<InventarioResponse>>
+                > respuesta =
                 inventarioController.listarPorProducto(1L);
 
         assertAll(
@@ -163,51 +206,67 @@ class InventarioControllerTest {
                 ),
                 () -> assertEquals(
                         1,
-                        respuesta.getBody().size()
-                ),
-                () -> assertEquals(
-                        1L,
                         respuesta.getBody()
-                                .get(0)
-                                .productoId()
+                                .getContent()
+                                .size()
                 )
         );
 
-        verify(inventarioService).listarPorProducto(1L);
+        verify(inventarioService)
+                .listarPorProducto(1L);
+
+        verify(inventarioModelAssembler)
+                .toCollectionModelPorProducto(
+                        inventarios,
+                        1L
+                );
     }
 
     @Test
-    void listarPorSucursal_debeRetornarInventariosDeSucursal() {
-        when(inventarioService.listarPorSucursal(1L))
-                .thenReturn(List.of(inventarioResponse));
+    void listarPorSucursal_debeRetornarColeccion() {
+        List<InventarioResponse> inventarios =
+                List.of(inventarioResponse);
 
-        ResponseEntity<List<InventarioResponse>> respuesta =
+        CollectionModel<EntityModel<InventarioResponse>> modelo =
+                CollectionModel.of(
+                        List.of(inventarioModel)
+                );
+
+        when(inventarioService.listarPorSucursal(1L))
+                .thenReturn(inventarios);
+
+        when(inventarioModelAssembler
+                .toCollectionModelPorSucursal(
+                        inventarios,
+                        1L
+                ))
+                .thenReturn(modelo);
+
+        ResponseEntity<
+                CollectionModel<EntityModel<InventarioResponse>>
+                > respuesta =
                 inventarioController.listarPorSucursal(1L);
 
-        assertAll(
-                () -> assertEquals(
-                        HttpStatus.OK,
-                        respuesta.getStatusCode()
-                ),
-                () -> assertEquals(
-                        1,
-                        respuesta.getBody().size()
-                ),
-                () -> assertEquals(
-                        1L,
-                        respuesta.getBody()
-                                .get(0)
-                                .sucursalId()
-                ),
-                () -> assertEquals(
-                        "Sucursal Centro",
-                        respuesta.getBody()
-                                .get(0)
-                                .sucursalNombre()
-                )
+        assertEquals(
+                HttpStatus.OK,
+                respuesta.getStatusCode()
         );
 
-        verify(inventarioService).listarPorSucursal(1L);
+        assertEquals(
+                1,
+                respuesta.getBody()
+                        .getContent()
+                        .size()
+        );
+
+        verify(inventarioService)
+                .listarPorSucursal(1L);
+
+        verify(inventarioModelAssembler)
+                .toCollectionModelPorSucursal(
+                        inventarios,
+                        1L
+                );
     }
 
     @Test
@@ -219,7 +278,7 @@ class InventarioControllerTest {
                         "Salida por venta"
                 );
 
-        MovimientoInventarioResponse movimientoResponse =
+        MovimientoInventarioResponse movimiento =
                 new MovimientoInventarioResponse(
                         1L,
                         1L,
@@ -238,6 +297,10 @@ class InventarioControllerTest {
                         )
                 );
 
+        EntityModel<MovimientoInventarioResponse>
+                movimientoModel =
+                EntityModel.of(movimiento);
+
         when(authentication.getName())
                 .thenReturn(ADMIN_EMAIL);
 
@@ -245,9 +308,14 @@ class InventarioControllerTest {
                 1L,
                 request,
                 ADMIN_EMAIL
-        )).thenReturn(movimientoResponse);
+        )).thenReturn(movimiento);
 
-        ResponseEntity<MovimientoInventarioResponse> respuesta =
+        when(movimientoModelAssembler.toModel(movimiento))
+                .thenReturn(movimientoModel);
+
+        ResponseEntity<
+                EntityModel<MovimientoInventarioResponse>
+                > respuesta =
                 inventarioController.registrarMovimiento(
                         1L,
                         request,
@@ -260,30 +328,21 @@ class InventarioControllerTest {
                         respuesta.getStatusCode()
                 ),
                 () -> assertEquals(
-                        TipoMovimientoInventario.SALIDA,
-                        respuesta.getBody().tipo()
-                ),
-                () -> assertEquals(
-                        20,
-                        respuesta.getBody().stockAnterior()
-                ),
-                () -> assertEquals(
                         8,
-                        respuesta.getBody().stockPosterior()
-                ),
-                () -> assertEquals(
-                        ADMIN_EMAIL,
-                        respuesta.getBody().usuarioEmail()
+                        respuesta.getBody()
+                                .getContent()
+                                .stockPosterior()
                 )
         );
-
-        verify(authentication).getName();
 
         verify(inventarioService).registrarMovimiento(
                 1L,
                 request,
                 ADMIN_EMAIL
         );
+
+        verify(movimientoModelAssembler)
+                .toModel(movimiento);
     }
 
     @Test
@@ -307,10 +366,29 @@ class InventarioControllerTest {
                         )
                 );
 
-        when(inventarioService.listarMovimientos(1L))
-                .thenReturn(List.of(movimiento));
+        List<MovimientoInventarioResponse> movimientos =
+                List.of(movimiento);
 
-        ResponseEntity<List<MovimientoInventarioResponse>> respuesta =
+        CollectionModel<
+                EntityModel<MovimientoInventarioResponse>
+                > modelo =
+                CollectionModel.of(
+                        List.of(EntityModel.of(movimiento))
+                );
+
+        when(inventarioService.listarMovimientos(1L))
+                .thenReturn(movimientos);
+
+        when(movimientoModelAssembler.toCollectionModel(
+                movimientos,
+                1L
+        )).thenReturn(modelo);
+
+        ResponseEntity<
+                CollectionModel<
+                        EntityModel<MovimientoInventarioResponse>
+                        >
+                > respuesta =
                 inventarioController.listarMovimientos(1L);
 
         assertAll(
@@ -320,22 +398,16 @@ class InventarioControllerTest {
                 ),
                 () -> assertEquals(
                         1,
-                        respuesta.getBody().size()
-                ),
-                () -> assertEquals(
-                        TipoMovimientoInventario.ENTRADA,
                         respuesta.getBody()
-                                .get(0)
-                                .tipo()
-                ),
-                () -> assertEquals(
-                        18,
-                        respuesta.getBody()
-                                .get(0)
-                                .stockPosterior()
+                                .getContent()
+                                .size()
                 )
         );
 
-        verify(inventarioService).listarMovimientos(1L);
+        verify(inventarioService)
+                .listarMovimientos(1L);
+
+        verify(movimientoModelAssembler)
+                .toCollectionModel(movimientos, 1L);
     }
 }

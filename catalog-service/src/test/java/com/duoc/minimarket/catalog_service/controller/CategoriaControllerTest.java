@@ -1,5 +1,6 @@
 package com.duoc.minimarket.catalog_service.controller;
 
+import com.duoc.minimarket.catalog_service.assembler.CategoriaModelAssembler;
 import com.duoc.minimarket.catalog_service.dto.CategoriaRequest;
 import com.duoc.minimarket.catalog_service.dto.CategoriaResponse;
 import com.duoc.minimarket.catalog_service.service.CategoriaService;
@@ -8,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -25,35 +28,59 @@ class CategoriaControllerTest {
     @Mock
     private CategoriaService categoriaService;
 
+    @Mock
+    private CategoriaModelAssembler categoriaModelAssembler;
+
     private CategoriaController categoriaController;
 
     private CategoriaRequest request;
-    private CategoriaResponse response;
+    private CategoriaResponse categoriaResponse;
+    private EntityModel<CategoriaResponse> categoriaModel;
 
     @BeforeEach
     void configurarDatos() {
         categoriaController =
-                new CategoriaController(categoriaService);
+                new CategoriaController(
+                        categoriaService,
+                        categoriaModelAssembler
+                );
 
         request = new CategoriaRequest(
                 "Bebidas",
                 "Bebidas, refrescos y jugos"
         );
 
-        response = new CategoriaResponse(
+        categoriaResponse = new CategoriaResponse(
                 1L,
                 "Bebidas",
                 "Bebidas, refrescos y jugos",
                 true
         );
+
+        categoriaModel =
+                EntityModel.of(categoriaResponse);
     }
 
     @Test
     void listar_debeRetornarCategoriasActivas() {
-        when(categoriaService.listarActivas())
-                .thenReturn(List.of(response));
+        List<CategoriaResponse> categorias =
+                List.of(categoriaResponse);
 
-        ResponseEntity<List<CategoriaResponse>> resultado =
+        CollectionModel<EntityModel<CategoriaResponse>> modelo =
+                CollectionModel.of(
+                        List.of(categoriaModel)
+                );
+
+        when(categoriaService.listarActivas())
+                .thenReturn(categorias);
+
+        when(categoriaModelAssembler
+                .toCollectionModel(categorias))
+                .thenReturn(modelo);
+
+        ResponseEntity<
+                CollectionModel<EntityModel<CategoriaResponse>>
+                > resultado =
                 categoriaController.listar();
 
         assertAll(
@@ -62,24 +89,32 @@ class CategoriaControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1,
-                        resultado.getBody().size()
+                        modelo,
+                        resultado.getBody()
                 ),
                 () -> assertEquals(
-                        "Bebidas",
-                        resultado.getBody().get(0).nombre()
+                        1,
+                        resultado.getBody()
+                                .getContent()
+                                .size()
                 )
         );
 
         verify(categoriaService).listarActivas();
+
+        verify(categoriaModelAssembler)
+                .toCollectionModel(categorias);
     }
 
     @Test
-    void obtenerPorId_debeRetornarCategoria() {
+    void obtenerPorId_debeRetornarCategoriaConEnlaces() {
         when(categoriaService.obtenerPorId(1L))
-                .thenReturn(response);
+                .thenReturn(categoriaResponse);
 
-        ResponseEntity<CategoriaResponse> resultado =
+        when(categoriaModelAssembler.toModel(categoriaResponse))
+                .thenReturn(categoriaModel);
+
+        ResponseEntity<EntityModel<CategoriaResponse>> resultado =
                 categoriaController.obtenerPorId(1L);
 
         assertAll(
@@ -88,24 +123,31 @@ class CategoriaControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertEquals(
-                        1L,
-                        resultado.getBody().id()
+                        categoriaModel,
+                        resultado.getBody()
                 ),
                 () -> assertEquals(
                         "Bebidas",
-                        resultado.getBody().nombre()
+                        resultado.getBody()
+                                .getContent()
+                                .nombre()
                 )
         );
 
         verify(categoriaService).obtenerPorId(1L);
+        verify(categoriaModelAssembler)
+                .toModel(categoriaResponse);
     }
 
     @Test
     void crear_debeRetornar201Created() {
         when(categoriaService.crear(request))
-                .thenReturn(response);
+                .thenReturn(categoriaResponse);
 
-        ResponseEntity<CategoriaResponse> resultado =
+        when(categoriaModelAssembler.toModel(categoriaResponse))
+                .thenReturn(categoriaModel);
+
+        ResponseEntity<EntityModel<CategoriaResponse>> resultado =
                 categoriaController.crear(request);
 
         assertAll(
@@ -114,12 +156,14 @@ class CategoriaControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertEquals(
-                        response,
+                        categoriaModel,
                         resultado.getBody()
                 )
         );
 
         verify(categoriaService).crear(request);
+        verify(categoriaModelAssembler)
+                .toModel(categoriaResponse);
     }
 
     @Test
@@ -132,10 +176,16 @@ class CategoriaControllerTest {
                         true
                 );
 
+        EntityModel<CategoriaResponse> modeloActualizado =
+                EntityModel.of(actualizada);
+
         when(categoriaService.actualizar(1L, request))
                 .thenReturn(actualizada);
 
-        ResponseEntity<CategoriaResponse> resultado =
+        when(categoriaModelAssembler.toModel(actualizada))
+                .thenReturn(modeloActualizado);
+
+        ResponseEntity<EntityModel<CategoriaResponse>> resultado =
                 categoriaController.actualizar(1L, request);
 
         assertAll(
@@ -145,11 +195,14 @@ class CategoriaControllerTest {
                 ),
                 () -> assertEquals(
                         "Bebidas Actualizadas",
-                        resultado.getBody().nombre()
+                        resultado.getBody()
+                                .getContent()
+                                .nombre()
                 )
         );
 
         verify(categoriaService).actualizar(1L, request);
+        verify(categoriaModelAssembler).toModel(actualizada);
     }
 
     @Test
@@ -162,10 +215,16 @@ class CategoriaControllerTest {
                         false
                 );
 
+        EntityModel<CategoriaResponse> modeloDesactivado =
+                EntityModel.of(desactivada);
+
         when(categoriaService.cambiarEstado(1L, false))
                 .thenReturn(desactivada);
 
-        ResponseEntity<CategoriaResponse> resultado =
+        when(categoriaModelAssembler.toModel(desactivada))
+                .thenReturn(modeloDesactivado);
+
+        ResponseEntity<EntityModel<CategoriaResponse>> resultado =
                 categoriaController.cambiarEstado(1L, false);
 
         assertAll(
@@ -174,10 +233,13 @@ class CategoriaControllerTest {
                         resultado.getStatusCode()
                 ),
                 () -> assertFalse(
-                        resultado.getBody().activo()
+                        resultado.getBody()
+                                .getContent()
+                                .activo()
                 )
         );
 
         verify(categoriaService).cambiarEstado(1L, false);
+        verify(categoriaModelAssembler).toModel(desactivada);
     }
 }
