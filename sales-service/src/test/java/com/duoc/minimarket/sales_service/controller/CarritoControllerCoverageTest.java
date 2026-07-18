@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,8 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -305,6 +305,43 @@ class CarritoControllerCoverageTest {
                 LocalDateTime.now(),
                 LocalDateTime.now(),
                 List.of()
+        );
+    }
+
+    @Test
+    void debeObtenerCarritoActivoConHateoas() {
+        CarritoResponse carrito = crearCarritoResponse();
+
+        when(
+                carritoService.obtenerActivo(
+                        "cliente@minimarket.cl"
+                )
+        ).thenReturn(carrito);
+
+        ResponseEntity<EntityModel<CarritoResponse>> response =
+                carritoController.obtenerActivoHateoas(
+                        authentication
+                );
+
+        assertEquals(
+                HttpStatus.OK,
+                response.getStatusCode()
+        );
+
+        assertNotNull(response.getBody());
+        assertNotNull(response.getBody().getContent());
+
+        assertEquals(
+                1L,
+                response.getBody().getContent().id()
+        );
+
+        assertTrue(
+                response.getBody().hasLink("self")
+        );
+
+        assertTrue(
+                response.getBody().hasLink("historial")
         );
     }
 }

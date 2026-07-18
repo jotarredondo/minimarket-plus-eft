@@ -60,12 +60,11 @@ El sistema estará compuesto por tres microservicios:
 
 Los servicios deben iniciarse en el siguiente orden:
 
-1. Auth Service, puerto 8081.
-2. Catalog Service, puerto 8082.
-3. Sales Service, puerto 8083.
+1. `auth-service`, puerto 8081.
+2. `catalog-service`, puerto 8082.
+3. `sales-service`, puerto 8083.
 
-Auth Service debe estar disponible antes de probar los servicios protegidos,
-ya que es el encargado de generar los JWT.
+`auth-service` genera los JWT utilizados para acceder a los endpoints protegidos de los otros microservicios.
 
 ## Auth Service
 
@@ -74,13 +73,16 @@ Responsabilidades:
 - Registro de clientes.
 - Inicio de sesión.
 - Generación y validación de JWT.
-- Asignación de los roles CLIENTE, CAJERO y ADMIN.
-- Consulta del usuario autenticado.
+- Cifrado de contraseñas con BCrypt.
+- Gestión de los roles `CLIENTE`, `CAJERO` y `ADMIN`.
+- Consulta de la identidad del usuario autenticado.
+- Creación inicial de usuarios administrativos configurables mediante variables de entorno.
 
 ### Documentación
 
 - Swagger UI: `http://localhost:8081/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8081/v3/api-docs`
+- Consola H2: `http://localhost:8081/h2-console`
 
 ## Catalog Service
 
@@ -90,9 +92,21 @@ Responsabilidades:
 - Gestión de productos.
 - Gestión de sucursales.
 - Control de inventario por producto y sucursal.
-- Registro de entradas, salidas y ajustes de stock.
+- Registro de movimientos de entrada, salida y ajuste.
+- Salida de inventario originada por una venta.
 - Generación automática de órdenes de reposición.
-- Navegación de recursos mediante HATEOAS.
+- Consulta y actualización del estado de las órdenes de reposición.
+- Navegación de recursos mediante enlaces HATEOAS.
+
+### Recursos principales
+
+- `/api/categorias`
+- `/api/productos`
+- `/api/sucursales`
+- `/api/inventarios`
+- `/api/inventarios/{inventarioId}/movimientos`
+- `/api/inventarios/{inventarioId}/salidas-venta`
+- `/api/ordenes-reposicion`
 
 ### Documentación
 
@@ -100,136 +114,227 @@ Responsabilidades:
 - OpenAPI JSON: `http://localhost:8082/v3/api-docs`
 - Consola H2: `http://localhost:8082/h2-console`
 
+## Sales Service
+
+Responsabilidades:
+
+- Crear o recuperar el carrito activo de un cliente.
+- Agregar, actualizar y eliminar productos del carrito.
+- Validar inventario, sucursal, producto activo y stock disponible mediante `catalog-service`.
+- Aplicar promociones vigentes al carrito.
+- Convertir el carrito en un pedido para retiro en tienda o despacho a domicilio.
+- Consultar pedidos propios y pedidos pendientes.
+- Confirmar ventas exclusivamente con el rol `CAJERO`.
+- Conservar el detalle histórico de productos, cantidades, precios y descuentos vendidos.
+- Evitar la confirmación duplicada de un pedido.
+- Descontar inventario mediante integración HTTP con `catalog-service`.
+- Administrar promociones centralizadas.
+- Generar reportes de ventas y rotación de productos.
+
+### Recursos principales
+
+#### Carritos
+
+- `POST /api/carritos`
+- `GET /api/carritos/actual`
+- `GET /api/carritos/actual/hateoas`
+- `POST /api/carritos/items`
+- `PATCH /api/carritos/items/{itemId}`
+- `DELETE /api/carritos/items/{itemId}`
+- `DELETE /api/carritos/items`
+- `GET /api/carritos`
+
+#### Pedidos
+
+- `POST /api/pedidos`
+- `GET /api/pedidos/mis-pedidos`
+- `GET /api/pedidos/mis-pedidos/{pedidoId}`
+- `GET /api/pedidos/pendientes`
+- `GET /api/pedidos/{pedidoId}/gestion`
+
+#### Ventas
+
+- `POST /api/ventas/pedidos/{pedidoId}/confirmar`
+- `GET /api/ventas/mis-ventas`
+- `GET /api/ventas`
+- `GET /api/ventas/{ventaId}`
+
+#### Promociones
+
+- `GET /api/promociones/activas`
+- `POST /api/promociones`
+- `PATCH /api/promociones/{promocionId}/estado`
+
+#### Reportes
+
+- `GET /api/reportes/resumen-ventas`
+- `GET /api/reportes/productos-rotacion`
+
+### Documentación
+
+- Swagger UI: `http://localhost:8083/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8083/v3/api-docs`
+- Consola H2: `http://localhost:8083/h2-console`
+
 ## Roles y permisos
 
 ### CLIENTE
 
-Puede consultar:
+Puede:
 
-- Categorías.
-- Productos.
-- Sucursales.
-- Disponibilidad de inventario.
-- Información relacionada con su carrito.
+- Registrarse e iniciar sesión.
+- Consultar categorías, productos, sucursales e inventario disponible.
+- Crear y administrar su carrito.
+- Crear pedidos para retiro o despacho.
+- Consultar sus propios pedidos.
+- Consultar promociones activas.
 
 ### CAJERO
 
-Puede consultar:
+Puede:
 
-- Categorías.
-- Productos.
-- Sucursales.
-- Inventarios.
-- Información necesaria para procesar ventas.
+- Consultar catálogo e inventario.
+- Consultar pedidos pendientes.
+- Confirmar una venta.
+- Consultar las ventas realizadas por su usuario.
+- Consultar promociones activas.
+
+La confirmación de ventas está restringida exclusivamente al rol `CAJERO`.
 
 ### ADMIN
 
 Puede:
 
-- Crear y modificar categorías.
-- Crear y modificar productos.
-- Crear y modificar sucursales.
-- Crear inventarios.
-- Registrar movimientos de stock.
+- Crear y modificar categorías, productos y sucursales.
+- Crear inventarios y registrar movimientos de stock.
 - Consultar y administrar órdenes de reposición.
-- Consultar reportes administrativos.
+- Crear, activar y desactivar promociones.
+- Consultar todas las ventas.
+- Consultar el resumen de ventas y la rotación de productos.
+
+## Seguridad
+
+- Arquitectura stateless sin sesiones de servidor.
+- Autenticación mediante JWT.
+- Autorización mediante roles y `@PreAuthorize`.
+- Contraseñas almacenadas con BCrypt.
+- Respuestas diferenciadas para acceso no autenticado (`401`) y acceso sin permisos (`403`).
+- Swagger UI, OpenAPI y consola H2 permitidos sin autenticación para el entorno académico local.
+- Los demás endpoints requieren un JWT válido.
 
 ## Uso de Swagger UI
 
-1. Iniciar Auth Service y Catalog Service.
-2. Iniciar sesión mediante Auth Service.
-3. Copiar el JWT obtenido.
-4. Abrir Swagger UI del servicio que se desea probar.
-5. Seleccionar el botón `Authorize`.
-6. Ingresar solamente el JWT, sin agregar manualmente la palabra `Bearer`.
-7. Ejecutar los endpoints según el rol del usuario autenticado.
+1. Iniciar los tres microservicios.
+2. Iniciar sesión mediante `auth-service`.
+3. Copiar el JWT retornado.
+4. Abrir Swagger UI del servicio correspondiente.
+5. Seleccionar `Authorize`.
+6. Ingresar solamente el token, sin agregar manualmente la palabra `Bearer`.
+7. Ejecutar los endpoints permitidos para el rol autenticado.
 
-Los JWT no deben aparecer completos en capturas, documentos o archivos
-almacenados en el repositorio.
+## OpenAPI
+
+Cada servicio expone su contrato en `/v3/api-docs` y su interfaz Swagger en `/swagger-ui.html`.
+
+La carpeta `open-api` contiene archivos JSON exportados desde la documentación OpenAPI para revisión e importación en Postman.
+
+Actualmente el repositorio incluye el contrato exportado de `catalog-service`.
 
 ## HATEOAS
 
-Los recursos principales incluyen enlaces dinámicos dentro de `_links`.
+`catalog-service` incorpora enlaces dinámicos en recursos principales como categorías, productos, sucursales, inventarios y movimientos.
 
-Entre las relaciones disponibles se encuentran:
+`sales-service` dispone de una respuesta HATEOAS para el carrito activo mediante:
 
-- Producto hacia su categoría e inventarios.
-- Categoría hacia sus productos.
-- Sucursal hacia sus inventarios.
-- Inventario hacia producto, sucursal, movimientos y órdenes de reposición.
-- Movimiento hacia el inventario relacionado.
+```text
+GET /api/carritos/actual/hateoas
+```
 
-Las respuestas de colecciones pueden incluir los elementos dentro de
-`_embedded`.
+La respuesta incluye enlaces dentro de `_links` para navegar hacia el carrito actual, historial y operaciones relacionadas.
+
+## Integración entre microservicios
+
+`sales-service` consume `catalog-service` para:
+
+- Consultar productos.
+- Consultar inventarios.
+- Validar la sucursal asociada al carrito o pedido.
+- Verificar stock antes de crear el pedido y confirmar la venta.
+- Registrar una salida de inventario después de confirmar una venta.
+
+El JWT recibido por `sales-service` se reenvía a `catalog-service`, manteniendo la autenticación y los permisos durante la integración.
 
 ## Pruebas y cobertura
 
-Los microservicios incluyen pruebas unitarias desarrolladas con JUnit 5 y
-Mockito.
+Los microservicios incluyen pruebas unitarias desarrolladas con JUnit 5 y Mockito. También se incluyen pruebas de controladores, entidades, reglas de negocio, validaciones y seguridad.
 
-JaCoCo genera el reporte de cobertura al ejecutar la validación Maven del
-proyecto.
+JaCoCo genera el reporte en cada microservicio dentro de:
 
-Cobertura actual:
+```text
+target/site/jacoco/index.html
+```
+
+Cobertura registrada:
 
 | Microservicio | Cobertura |
 |---|---:|
 | Auth Service | 81 % |
-| Catalog Service | 84 % |
+| Catalog Service | 83 % |
+| Sales Service | 76 % en la última ejecución después de incorporar HATEOAS |
 
-El reporte de cada servicio se genera dentro de:
-
-`target/site/jacoco/index.html`
+Antes de la entrega final se debe ejecutar nuevamente la validación de `sales-service` y actualizar esta tabla con el porcentaje definitivo. El objetivo académico es mantener una cobertura igual o superior al 80 %.
 
 ## Postman
 
-La carpeta `postman` contiene:
+La carpeta `postman` contiene la colección utilizada para validar:
 
-- La colección funcional de MiniMarket Plus.
-- El entorno con las URL locales.
-- La colección generada desde OpenAPI.
-- Solicitudes de validación para los roles CLIENTE, CAJERO y ADMIN.
+- Registro e inicio de sesión.
+- Tokens y roles.
+- Operaciones del catálogo.
+- Control de inventario y reposición.
+- Flujo de carrito, pedido y venta.
+- Validación de stock insuficiente.
+- Acceso denegado según rol.
+- Integración entre `sales-service` y `catalog-service`.
 
-Los tokens deben configurarse localmente y no deben almacenarse con valores
-reales en los archivos exportados.
-
-## Archivos OpenAPI
-
-Los archivos JSON exportados desde `/v3/api-docs` se almacenan en la carpeta
-`docs/openapi`.
-
-Estos archivos permiten:
-
-- Revisar el contrato de los servicios.
-- Importar la API en Postman.
-- Validar la consistencia entre documentación e implementación.
+Los tokens deben configurarse localmente y eliminarse antes de exportar o subir la colección.
 
 ## Base de datos
 
-Actualmente se utiliza H2 para el entorno académico y local.
+Los tres microservicios utilizan H2 en memoria para el entorno académico local.
 
-La información almacenada puede reiniciarse cada vez que se detiene o
-reinicia el microservicio, dependiendo de la configuración utilizada.
+Los datos pueden reiniciarse al detener o reiniciar los servicios, de acuerdo con la configuración de persistencia de cada microservicio.
 
-## Seguridad
+## Flujo de prueba recomendado
 
-- La autenticación se realiza mediante JWT.
-- Las APIs no mantienen sesiones de usuario.
-- Los permisos se controlan mediante roles.
-- Las contraseñas se almacenan cifradas con BCrypt.
-- Los secretos y tokens no deben subirse a GitHub.
+1. Iniciar sesión como `ADMIN`, `CAJERO` y `CLIENTE`.
+2. Crear categoría, producto, sucursal e inventario como `ADMIN`.
+3. Crear un carrito como `CLIENTE`.
+4. Agregar productos y verificar la validación de stock.
+5. Crear un pedido pendiente.
+6. Intentar confirmar la venta con `CLIENTE` y comprobar el `403`.
+7. Confirmar la venta con `CAJERO` y comprobar el `201`.
+8. Consultar el inventario y verificar la salida de stock.
+9. Repetir la confirmación y comprobar que se evita una venta duplicada.
+10. Consultar promociones y reportes según el rol correspondiente.
 
 ## Evidencias para la EFT
 
-Cada integrante debe documentar:
+La entrega debe incluir evidencias de:
 
-- Ejecución de los microservicios.
+- Ejecución de los tres microservicios.
 - Inicio de sesión y generación de JWT.
-- Acceso permitido y denegado según los roles.
-- Swagger UI con todos los endpoints documentados.
-- Respuestas que contengan enlaces HATEOAS.
-- Archivo JSON generado desde `/v3/api-docs`.
-- Importación y prueba de OpenAPI en Postman.
-- Ejecución exitosa de las pruebas unitarias.
-- Reportes de cobertura JaCoCo.
-- Integración entre los microservicios.
+- Acceso permitido y denegado según roles.
+- Flujo completo de carrito, pedido y venta.
+- Inventario antes y después de confirmar la venta.
+- Movimiento de salida generado por la venta.
+- Swagger UI y contratos OpenAPI.
+- Respuestas con enlaces HATEOAS.
+- Colección Postman funcional.
+- Ejecución exitosa de pruebas unitarias.
+- Reportes JaCoCo.
+- Repositorio GitHub sin secretos ni tokens expuestos.
+
+## Autores
+
+Proyecto desarrollado con fines académicos para DUOC UC.
