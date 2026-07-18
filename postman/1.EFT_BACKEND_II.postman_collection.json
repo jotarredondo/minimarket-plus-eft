@@ -435,9 +435,6 @@
         },
         {
           "name": "VERIFICAR_INVENTARIO",
-          "protocolProfileBehavior": {
-            "disableBodyPruning": true
-          },
           "request": {
             "auth": {
               "type": "bearer",
@@ -451,15 +448,6 @@
             },
             "method": "GET",
             "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"productoId\": 1,\r\n  \"sucursalId\": 1,\r\n  \"stockInicial\": 20,\r\n  \"stockMinimo\": 10\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "http://localhost:8082/api/inventarios/1",
               "protocol": "http",
@@ -478,9 +466,6 @@
         },
         {
           "name": "ORDEN_REPOSICION",
-          "protocolProfileBehavior": {
-            "disableBodyPruning": true
-          },
           "request": {
             "auth": {
               "type": "bearer",
@@ -494,17 +479,8 @@
             },
             "method": "GET",
             "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"productoId\": 1,\r\n  \"sucursalId\": 1,\r\n  \"stockInicial\": 20,\r\n  \"stockMinimo\": 10\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "http://localhost:8082/api/ordenes-reposicion?estado=GENERADA",
+              "raw": "http://localhost:8082/api/ordenes-reposicion/estado/GENERADA",
               "protocol": "http",
               "host": [
                 "localhost"
@@ -512,13 +488,41 @@
               "port": "8082",
               "path": [
                 "api",
-                "ordenes-reposicion"
-              ],
-              "query": [
+                "ordenes-reposicion",
+                "estado",
+                "GENERADA"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "HISTORIAL_MOVIMIENTOS",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                  "key": "estado",
-                  "value": "GENERADA"
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
                 }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8082/api/inventarios/1/movimientos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8082",
+              "path": [
+                "api",
+                "inventarios",
+                "1",
+                "movimientos"
               ]
             }
           },
@@ -560,6 +564,438 @@
                 "inventarios",
                 "1",
                 "movimientos"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "SALES_SERVICE",
+      "item": [
+        {
+          "name": "CARRITO_SIN_TOKEN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8083/api/carritos/actual",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "carritos",
+                "actual"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CREAR_CARRITO_CLIENTE",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"sucursalId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/carritos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "carritos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AGREGAR_PRODUCTO_AL_CARRITO",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"inventarioId\": 1,\r\n  \"cantidad\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/carritos/items",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "carritos",
+                "items"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AGREGAR_PRODUCTO_SIN_STOCK_ERROR_CONTROLADO",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"inventarioId\": 1,\r\n  \"cantidad\": 9999\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/carritos/items",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "carritos",
+                "items"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CREAR_PEDIDO_CLIENTE",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"tipoEntrega\": \"RETIRO_TIENDA\",\r\n  \"direccionEntrega\": null\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/pedidos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CLIENTE_INTENTA_CONFIRMAR_VENTA",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8083/api/ventas/pedidos/1/confirmar",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "ventas",
+                "pedidos",
+                "1",
+                "confirmar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CAJERO_CONFIRMA_VENTA",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8083/api/ventas/pedidos/1/confirmar",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "ventas",
+                "pedidos",
+                "1",
+                "confirmar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CONFIRMAR_MISMO_PEDIDO_ERROR_CONTROLADO",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8083/api/ventas/pedidos/1/confirmar",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "ventas",
+                "pedidos",
+                "1",
+                "confirmar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CREAR_PROMOCION_ADMIN",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"nombre\": \"Descuento bebidas\",\r\n  \"descripcion\": \"Promoción de prueba\",\r\n  \"productoId\": 1,\r\n  \"tipo\": \"PORCENTAJE\",\r\n  \"valor\": 10,\r\n  \"fechaInicio\": \"2026-07-18T00:00:00\",\r\n  \"fechaFin\": \"2026-12-31T23:59:59\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/promociones",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "promociones"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CREAR_CARRITO_NUEVO",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"sucursalId\": 1\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/carritos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "carritos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AGREGAR_PRODUCTO_CARRITO_NUEVO",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"inventarioId\": 1,\r\n  \"cantidad\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8083/api/carritos/items",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "carritos",
+                "items"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CONSULTAR_REPORTE",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8083/api/reportes/productos-rotacion",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "api",
+                "reportes",
+                "productos-rotacion"
               ]
             }
           },

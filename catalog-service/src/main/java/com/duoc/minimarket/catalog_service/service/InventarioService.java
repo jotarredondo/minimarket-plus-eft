@@ -1,11 +1,6 @@
 package com.duoc.minimarket.catalog_service.service;
 
-import com.duoc.minimarket.catalog_service.dto.ActualizarOrdenReposicionRequest;
-import com.duoc.minimarket.catalog_service.dto.CrearInventarioRequest;
-import com.duoc.minimarket.catalog_service.dto.InventarioResponse;
-import com.duoc.minimarket.catalog_service.dto.MovimientoInventarioRequest;
-import com.duoc.minimarket.catalog_service.dto.MovimientoInventarioResponse;
-import com.duoc.minimarket.catalog_service.dto.OrdenReposicionResponse;
+import com.duoc.minimarket.catalog_service.dto.*;
 import com.duoc.minimarket.catalog_service.entity.EstadoOrdenReposicion;
 import com.duoc.minimarket.catalog_service.entity.Inventario;
 import com.duoc.minimarket.catalog_service.entity.MovimientoInventario;
@@ -443,6 +438,26 @@ public class InventarioService {
                 orden.getEstado(),
                 orden.getMotivo(),
                 orden.getFechaGeneracion()
+        );
+    }
+
+    @Transactional
+    public MovimientoInventarioResponse registrarSalidaVenta(
+            Long inventarioId,
+            SalidaVentaRequest request,
+            String usuarioEmail
+    ) {
+        MovimientoInventarioRequest movimientoRequest =
+                new MovimientoInventarioRequest(
+                        TipoMovimientoInventario.SALIDA,
+                        request.cantidad(),
+                        request.motivo().trim()
+                );
+
+        return registrarMovimiento(
+                inventarioId,
+                movimientoRequest,
+                usuarioEmail
         );
     }
 }

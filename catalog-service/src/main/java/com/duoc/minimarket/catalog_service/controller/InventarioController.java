@@ -3,10 +3,7 @@ package com.duoc.minimarket.catalog_service.controller;
 import com.duoc.minimarket.catalog_service.assembler.InventarioModelAssembler;
 import com.duoc.minimarket.catalog_service.assembler.MovimientoInventarioModelAssembler;
 import com.duoc.minimarket.catalog_service.config.OpenApiConfig;
-import com.duoc.minimarket.catalog_service.dto.CrearInventarioRequest;
-import com.duoc.minimarket.catalog_service.dto.InventarioResponse;
-import com.duoc.minimarket.catalog_service.dto.MovimientoInventarioRequest;
-import com.duoc.minimarket.catalog_service.dto.MovimientoInventarioResponse;
+import com.duoc.minimarket.catalog_service.dto.*;
 import com.duoc.minimarket.catalog_service.service.InventarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -350,5 +347,60 @@ public class InventarioController {
                         inventarioId
                 )
         );
+    }
+
+    @PostMapping("/{inventarioId}/salidas-venta")
+    @PreAuthorize("hasRole('CAJERO')")
+    @Operation(
+            summary = "Registrar salida de inventario por venta",
+            description = """
+                Descuenta stock cuando sales-service confirma una venta.
+                La operación está disponible exclusivamente para usuarios
+                autenticados con el rol CAJERO.
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Salida de inventario registrada"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Cantidad inválida o stock insuficiente"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "JWT ausente, inválido o expirado"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "El usuario no posee el rol CAJERO"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Inventario no encontrado"
+            )
+    })
+    public ResponseEntity<
+            EntityModel<MovimientoInventarioResponse>
+            > registrarSalidaVenta(
+            @PathVariable Long inventarioId,
+            @Valid @RequestBody SalidaVentaRequest request,
+            Authentication authentication
+    ) {
+        MovimientoInventarioResponse movimiento =
+                inventarioService.registrarSalidaVenta(
+                        inventarioId,
+                        request,
+                        authentication.getName()
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(
+                        movimientoModelAssembler.toModel(
+                                movimiento
+                        )
+                );
     }
 }
